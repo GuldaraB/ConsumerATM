@@ -3,13 +3,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
-using Serilog.Core;
-using Serilog.Events;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using CommandLine;
 using ConsumerATM;
 
@@ -17,7 +10,6 @@ public class Program
 {
     private static string _logPath = "";
     private static string _configPath = "";
-    private static LoggingLevelSwitch levelSwitch = new LoggingLevelSwitch();
     public class Options
     {
         [Option('c', "config", Required = false, HelpText = "Path to config file")]
@@ -28,6 +20,7 @@ public class Program
     public static void Main(string[] args)
     {
         Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
             .WriteTo.Console()
             .Enrich.WithMachineName()
             .CreateBootstrapLogger();
@@ -79,6 +72,7 @@ public class Program
                .ReadFrom.Configuration(context.Configuration)
                .ReadFrom.Services(services)
                .Enrich.FromLogContext()
+               .MinimumLevel.Debug()
                .WriteTo.Console(outputTemplate:
                    "[{Timestamp:HH:mm:ss} {Level:u3}] [{MachineName}] {Message:lj}{NewLine}")
                .WriteTo.File(Path.Combine(_logPath, "log.txt"), rollingInterval: RollingInterval.Day)

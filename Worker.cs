@@ -1,5 +1,4 @@
 ﻿using Confluent.Kafka;
-using ConsumerATM.Jobs;
 using ConsumerATM.Models;
 using ConsumerATM.Services.Ivanti;
 using Microsoft.Extensions.Configuration;
@@ -21,7 +20,7 @@ namespace ConsumerATM
     {
         private readonly IConfiguration _config;
         private readonly IIvantiService _ivanti;
-        private List<IvantiDirectory> _ivantiDirectories;
+        private List<IvantiDirectory> _ivantiDirectories = new List<IvantiDirectory>();
         private System.Threading.Timer _timer;
 
         public Worker(IConfiguration config, IIvantiService ivanti)
@@ -36,14 +35,14 @@ namespace ConsumerATM
         }
 
         public async void Count(object obj)
-        {
-            _ivanti.SetHttpAuthorization(_config.GetValue<string>("Ivanti:IvantiKeyName"), _config.GetValue<string>("Ivanti:IvantiKeyValue"));
+        {            
             var list = await _ivanti.GetActivIvantyDirectory(_config.GetValue<string>("Ivanti:GetIvantiUrl"));
             _ivantiDirectories = list;
         }
 
         private async Task GetProcess(CancellationToken ct)
         {
+            _ivanti.SetHttpAuthorization(_config.GetValue<string>("Ivanti:IvantiKeyName"), _config.GetValue<string>("Ivanti:IvantiKeyValue"));
             _timer = new System.Threading.Timer(Count, null, 0, 15 * 60 * 1000);
 
             var consumerCfg = new ConsumerConfig
@@ -80,7 +79,7 @@ namespace ConsumerATM
                             $"Consumed event from topic {topic} with key {cr.Message.Key,-10} and value {cr.Message.Value}");
                         var message = JsonConvert.DeserializeObject<KafkaMessage>(cr.Message.Value);
                         var eventATM = await _ivanti.CreateEvent(message, _ivantiDirectories);
-                        //await _ivanti.SendEventToIvanti(eventATM, _config.GetValue<string>("Ivanti:IvantiPutUrl"));
+                        await _ivanti.SendEventToIvanti(eventATM, _config.GetValue<string>("Ivanti:IvantiPutUrl"));
                     }
                 }
                 catch (OperationCanceledException)

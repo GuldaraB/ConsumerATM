@@ -38,7 +38,7 @@ namespace ConsumerATM.Services.Ivanti
                     if (returnType != null)
                     {
                         ivantiDirectorys = returnType.IvantiDirectorys.ToList();
-                        Log.Debug($"Ivanti response: {response.StatusCode}. Ivanti directory with no ending time: {ivantiDirectorys.Count}");
+                        Log.Debug($"Ivanti response: {response.StatusCode}. Directory with ivanti received, contains {ivantiDirectorys.Count} values");
                     }
                 }
                 else
@@ -51,9 +51,10 @@ namespace ConsumerATM.Services.Ivanti
 
         public async Task<bool> SendEventToIvanti(IvantiEvent ivantiEvents, string url)
         {
+            Log.Debug($"Requesting POST method for {ivantiEvents.Description}");
             var jsonStr = JsonSerializer.Serialize(ivantiEvents);
             var httpContent = new StringContent(jsonStr, Encoding.UTF8, "application/json");
-            using (var cts = new CancellationTokenSource(30000))
+            using (var cts = new CancellationTokenSource(1000000))
             {
                 using (var response = await _httpClient.PostAsync(url, httpContent))
                 {
@@ -67,6 +68,7 @@ namespace ConsumerATM.Services.Ivanti
 
         public async Task<IvantiEvent> CreateEvent(KafkaMessage kafkaMessage, List<IvantiDirectory> ivantiDirectories)
         {
+            Log.Debug($"processing data, Id: {kafkaMessage.ChainMsgId}, message: {kafkaMessage.CcomMsg.Content.Text}");
             var stringPars = kafkaMessage.CcomMsg.Content.Text.Split(" -#- ");
             var ATMWarning = stringPars[0].Split(null, 2);
             string status = "";
@@ -107,7 +109,23 @@ namespace ConsumerATM.Services.Ivanti
                         for (int i = 0; i < cassettes.Length; i++)
                         {
                             var cassette = cassettes[i].Split("=");
-                            cssValues.Add(cassette.Length <= 9 & cassette.Length > 1 ? cassette[1] : "");
+                            if (cassette.Length <= 9 & cassette.Length > 1)
+                            {
+                                if (cassette[1] == "N")
+                                {
+                                    cssValues.Add("");
+                                }
+                                else
+                                {
+                                    cssValues.Add(cassette[1]);
+                                }
+                                
+                            }
+                            else
+                            {
+                                cssValues.Add("");
+                            }
+                            //cssValues.Add(cassette.Length <= 9 & cassette.Length > 1 ? cassette[1] : "");
                         }
                         int indexChar = cssValues[7].IndexOf('C');
                         var ccl = indexChar >= 0 ? cssValues[7].Substring(0, indexChar) : "";
